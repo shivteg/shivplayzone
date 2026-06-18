@@ -29,6 +29,7 @@ function App() {
   const [selectedPiece, setSelectedPiece] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'won' | 'lost'>('idle');
+  const [aspectRatio, setAspectRatio] = useState<number>(1);
   const timerRef = useRef<number | null>(null);
 
   const startLevel = useCallback((img: string, lvl: number) => {
@@ -60,7 +61,12 @@ function App() {
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          startLevel(event.target.result as string, 1);
+          const img = new Image();
+          img.onload = () => {
+            setAspectRatio(img.width / img.height);
+            startLevel(event.target!.result as string, 1);
+          };
+          img.src = event.target.result as string;
         }
       };
       reader.readAsDataURL(file);
@@ -154,6 +160,8 @@ function App() {
             style={{
               gridTemplateColumns: `repeat(${LEVELS[level].grid}, 1fr)`,
               gridTemplateRows: `repeat(${LEVELS[level].grid}, 1fr)`,
+              aspectRatio: `${aspectRatio}`,
+              height: 'auto',
             }}
           >
             {sortedPieces.map((piece) => {
