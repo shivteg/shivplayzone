@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import './App.css'
 
 interface Piece {
@@ -121,6 +121,10 @@ function App() {
     }
   };
 
+  const sortedPieces = useMemo(() => {
+    return [...pieces].sort((a, b) => a.currentPos - b.currentPos);
+  }, [pieces]);
+
   return (
     <div className="container">
       <h1>ShivPlayZone 🎮</h1>
@@ -152,9 +156,7 @@ function App() {
               gridTemplateRows: `repeat(${LEVELS[level].grid}, 1fr)`,
             }}
           >
-            {pieces
-              .sort((a, b) => a.currentPos - b.currentPos)
-              .map((piece) => {
+            {sortedPieces.map((piece) => {
                 const grid = LEVELS[level].grid;
                 const row = Math.floor(piece.correctPos / grid);
                 const col = piece.correctPos % grid;
