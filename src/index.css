@@ -59,6 +59,108 @@ h1 {
   background-color: #e3f2fd;
 }
 
+.room-panel {
+  background: #fff7d6;
+  border: 3px solid #ffa502;
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.room-header h2 {
+  color: var(--accent-color);
+  font-size: 1.35rem;
+  margin-bottom: 4px;
+}
+
+.room-header p {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.room-code {
+  background: var(--text-color);
+  color: white;
+  border-radius: 10px;
+  padding: 10px 14px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.room-controls {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(100px, 0.8fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.room-controls input {
+  width: 100%;
+  border: 2px solid var(--accent-color);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 1rem;
+  padding: 11px 12px;
+  min-width: 0;
+}
+
+.room-controls button,
+.room-meta button {
+  border-radius: 14px;
+  box-shadow: 0 4px 0 #219150;
+  font-size: 1rem;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.room-controls .danger-button {
+  background: var(--primary-color);
+  box-shadow: 0 4px 0 #b91f2b;
+}
+
+.room-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.player-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-list span {
+  background: white;
+  border: 2px solid var(--secondary-color);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  padding: 7px 12px;
+}
+
+.challenge-feed {
+  background: white;
+  border-radius: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+
+.challenge-feed p {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
 button {
   background-color: var(--secondary-color);
   color: white;
@@ -128,4 +230,44 @@ button:active {
 .timer {
   color: var(--primary-color);
   font-weight: bold;
+}
+
+.last-move {
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+@media (max-width: 700px) {
+  body {
+    align-items: flex-start;
+  }
+
+  #root {
+    padding: 12px;
+  }
+
+  .container {
+    padding: 18px;
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: 2.1rem;
+  }
+
+  .room-header,
+  .room-meta,
+  .stats {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .room-controls {
+    grid-template-columns: 1fr;
+  }
+
+  button {
+    width: 100%;
+    font-size: 1.2rem;
+  }
 }
