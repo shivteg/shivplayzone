@@ -1,73 +1,45 @@
-# React + TypeScript + Vite
+# ShivPlayZone 🎮
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A fun and interactive puzzle game for kids! Upload any photo and watch it turn into a puzzle. Solve it across 7 challenging levels.
 
-Currently, two official plugins are available:
+## 🚀 Features
+- **Custom Image Upload:** Use your own photos as puzzles.
+- **7 Levels of Difficulty:**
+  - Level 1: 2x2 grid (5 mins)
+  - Level 2: 3x3 grid (4 mins)
+  - Level 3: 4x4 grid (3 mins)
+  - Level 4: 5x5 grid (2 mins)
+  - Level 5: 6x6 grid (1.5 mins)
+  - Level 6: 7x7 grid (1 min)
+  - Level 7: 8x8 grid (45 secs)
+- **Timer:** Race against the clock!
+- **Kid-Friendly Design:** Bright colors and simple swap mechanics.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ How to Run Locally
 
-## React Compiler
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/shivteg/shivplayzone.git
+   cd shivplayzone
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Expanding the ESLint configuration
+3. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+4. **Open in browser:**
+   Go to `http://localhost:5173`
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🕹️ How to Play
+1. Click the big upload box to pick a photo.
+2. Click a puzzle piece to select it (it will turn yellow).
+3. Click another piece to swap them.
+4. Put all pieces in the right order before time runs out!
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Developed with ❤️ for kids everywhere.
