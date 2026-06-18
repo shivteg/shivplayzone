@@ -154,7 +154,7 @@ function App() {
           >
             {pieces
               .sort((a, b) => a.currentPos - b.currentPos)
-              .map((piece, index) => {
+              .map((piece) => {
                 const grid = LEVELS[level].grid;
                 const row = Math.floor(piece.correctPos / grid);
                 const col = piece.correctPos % grid;
