@@ -103,6 +103,8 @@ button:active {
   cursor: pointer;
   touch-action: none;
   border: 1px solid rgba(255,255,255,0.3);
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
 }
 
 .puzzle-piece.empty {

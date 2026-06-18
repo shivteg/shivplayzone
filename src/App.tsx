@@ -160,7 +160,11 @@ function App() {
                 const grid = LEVELS[level].grid;
                 const row = Math.floor(piece.correctPos / grid);
                 const col = piece.correctPos % grid;
-                const size = 100 / grid;
+                
+                // For background-position percentages to work correctly with background-size,
+                // we use (pos / (grid - 1)) * 100.
+                const posX = grid > 1 ? (col / (grid - 1)) * 100 : 0;
+                const posY = grid > 1 ? (row / (grid - 1)) * 100 : 0;
 
                 return (
                   <div
@@ -173,7 +177,7 @@ function App() {
                     style={{
                       backgroundImage: `url(${image})`,
                       backgroundSize: `${grid * 100}% ${grid * 100}%`,
-                      backgroundPosition: `${col * size}% ${row * size}%`,
+                      backgroundPosition: `${posX}% ${posY}%`,
                       outline: selectedPiece !== null && pieces[selectedPiece].id === piece.id ? '4px solid yellow' : 'none',
                       zIndex: selectedPiece !== null && pieces[selectedPiece].id === piece.id ? 10 : 1,
                     }}
