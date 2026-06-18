@@ -15,6 +15,7 @@
 - **Puzzle Logic:** 
   - Pieces are represented as objects with an `id`, `currentPos`, and `correctPos`.
   - Grid slicing is achieved via CSS `background-size` and `background-position`.
+  - The puzzle board automatically adjusts its height to maintain the uploaded image's aspect ratio.
   - Piece swapping is handled by updating the `currentPos` of the two selected pieces.
 - **Levels:** Configuration is stored in a `LEVELS` constant (Grid size: 2x2 to 8x8).
 
