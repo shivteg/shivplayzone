@@ -83,14 +83,7 @@ const MAX_ROOM_PLAYERS = 5;
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-const getPlayerId = () => {
-  const existing = window.sessionStorage.getItem('shivplayzone-player-id');
-  if (existing) return existing;
-
-  const id = crypto.randomUUID();
-  window.sessionStorage.setItem('shivplayzone-player-id', id);
-  return id;
-};
+const createPlayerId = () => crypto.randomUUID();
 
 function App() {
   const [image, setImage] = useState<string | null>(null);
@@ -101,7 +94,7 @@ function App() {
   const [gameState, setGameState] = useState<'idle' | 'playing' | 'won' | 'lost'>('idle');
   const [aspectRatio, setAspectRatio] = useState<number>(1);
   const [playerName, setPlayerName] = useState('Player');
-  const [playerId] = useState(() => getPlayerId());
+  const [playerId] = useState(() => createPlayerId());
   const [roomCode, setRoomCode] = useState('');
   const [roomInput, setRoomInput] = useState('');
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);

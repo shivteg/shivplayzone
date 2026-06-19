@@ -22,6 +22,7 @@
 - **Levels:** Configuration is stored in a `LEVELS` constant (Grid size: 2x2 to 8x8).
 - **Friend Rooms:**
   - Players create or enter a room code. Any devices using the same code, for example `2014`, join the same room.
+  - Each open app instance gets a unique internal player ID, so duplicated tabs or friends using the same visible name can still join and chat as separate players.
   - Rooms support up to 5 visible players.
   - Room messages sync puzzle starts, moves, full game state, challenges, chat messages, score entries, and WebRTC voice signals.
   - Supabase env vars (`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`) are required for real multi-device rooms after deployment.
