@@ -18,6 +18,22 @@ interface RoomPlayer {
   name: string;
 }
 
+interface ChatMessage {
+  id: string;
+  text: string;
+  player: RoomPlayer;
+  time: string;
+}
+
+interface ScoreEntry {
+  id: string;
+  player: RoomPlayer;
+  level: number;
+  score: number;
+  timeLeft: number;
+  time: string;
+}
+
 interface SyncedGame {
   image: string;
   level: number;
@@ -33,7 +49,20 @@ type RoomMessage =
   | { type: 'game-start'; game: SyncedGame; player: RoomPlayer }
   | { type: 'move'; game: SyncedGame; player: RoomPlayer }
   | { type: 'game-state'; game: SyncedGame; player: RoomPlayer }
-  | { type: 'challenge'; text: string; player: RoomPlayer };
+  | { type: 'challenge'; text: string; player: RoomPlayer }
+  | { type: 'chat'; message: ChatMessage; player: RoomPlayer }
+  | { type: 'score'; score: ScoreEntry; player: RoomPlayer }
+  | { type: 'voice-ready'; player: RoomPlayer }
+  | { type: 'voice-left'; player: RoomPlayer }
+  | {
+      type: 'voice-signal';
+      player: RoomPlayer;
+      targetId: string;
+      signal:
+        | { kind: 'offer'; description: RTCSessionDescriptionInit }
+        | { kind: 'answer'; description: RTCSessionDescriptionInit }
+        | { kind: 'ice'; candidate: RTCIceCandidateInit };
+    };
 
 const LEVELS: Record<number, LevelConfig> = {
   1: { grid: 2, time: 300 },
@@ -50,6 +79,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const createRoomCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const MAX_ROOM_PLAYERS = 5;
+
+const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const getPlayerId = () => {
   const existing = window.sessionStorage.getItem('shivplayzone-player-id');
@@ -75,15 +107,26 @@ function App() {
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
   const [roomStatus, setRoomStatus] = useState('Play solo or make a room for friends.');
   const [challengeFeed, setChallengeFeed] = useState<string[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [scores, setScores] = useState<ScoreEntry[]>([]);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('Mic is off.');
+  const [remoteVoicePlayers, setRemoteVoicePlayers] = useState<RoomPlayer[]>([]);
   const [lastMoveBy, setLastMoveBy] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const channelRef = useRef<RealtimeChannel | BroadcastChannel | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const remoteAudioRef = useRef<HTMLDivElement | null>(null);
   const piecesRef = useRef<Piece[]>([]);
   const gameStateRef = useRef(gameState);
   const imageRef = useRef(image);
   const levelRef = useRef(level);
   const timeLeftRef = useRef(timeLeft);
   const aspectRatioRef = useRef(aspectRatio);
+  const roomPlayersRef = useRef<RoomPlayer[]>([]);
+  const currentPlayerRef = useRef<RoomPlayer>({ id: playerId, name: 'Player' });
 
   useEffect(() => {
     piecesRef.current = pieces;
@@ -99,17 +142,39 @@ function App() {
     name: playerName.trim() || 'Player',
   }), [playerId, playerName]);
 
+  useEffect(() => {
+    currentPlayerRef.current = currentPlayer;
+  }, [currentPlayer]);
+
   const isInRoom = roomCode.length > 0;
 
   const addPlayer = useCallback((player: RoomPlayer) => {
     setRoomPlayers((players) => {
       const withoutDuplicate = players.filter((item) => item.id !== player.id);
-      return [...withoutDuplicate, player].slice(-3);
+      const nextPlayers = [...withoutDuplicate, player].slice(-MAX_ROOM_PLAYERS);
+      roomPlayersRef.current = nextPlayers;
+      return nextPlayers;
     });
   }, []);
 
   const addChallenge = useCallback((text: string) => {
     setChallengeFeed((feed) => [text, ...feed].slice(0, 4));
+  }, []);
+
+  const addChatMessage = useCallback((message: ChatMessage) => {
+    setChatMessages((messages) => {
+      if (messages.some((item) => item.id === message.id)) return messages;
+      return [...messages, message].slice(-30);
+    });
+  }, []);
+
+  const addScore = useCallback((score: ScoreEntry) => {
+    setScores((entries) => {
+      const withoutDuplicate = entries.filter((item) => item.id !== score.id);
+      return [...withoutDuplicate, score]
+        .sort((a, b) => b.score - a.score || b.timeLeft - a.timeLeft)
+        .slice(0, 10);
+    });
   }, []);
 
   const getSyncedGame = useCallback((override?: Partial<SyncedGame>): SyncedGame => ({
@@ -146,8 +211,131 @@ function App() {
       return;
     }
 
-    channel.postMessage(message);
+      channel.postMessage(message);
   }, [roomCode]);
+
+  const upsertRemoteAudio = useCallback((player: RoomPlayer, stream: MediaStream) => {
+    setRemoteVoicePlayers((players) => {
+      const withoutDuplicate = players.filter((item) => item.id !== player.id);
+      return [...withoutDuplicate, player];
+    });
+
+    const container = remoteAudioRef.current;
+    if (!container) return;
+
+    let audio = container.querySelector<HTMLAudioElement>(`audio[data-player-id="${player.id}"]`);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.dataset.playerId = player.id;
+      audio.autoplay = true;
+      container.appendChild(audio);
+    }
+    audio.srcObject = stream;
+  }, []);
+
+  const removePeer = useCallback((playerIdToRemove: string) => {
+    const peer = peerConnectionsRef.current.get(playerIdToRemove);
+    if (peer) peer.close();
+    peerConnectionsRef.current.delete(playerIdToRemove);
+    setRemoteVoicePlayers((players) => players.filter((player) => player.id !== playerIdToRemove));
+
+    const audio = remoteAudioRef.current?.querySelector<HTMLAudioElement>(`audio[data-player-id="${playerIdToRemove}"]`);
+    if (audio) {
+      audio.srcObject = null;
+      audio.remove();
+    }
+  }, []);
+
+  const getPeerConnection = useCallback((player: RoomPlayer) => {
+    const existing = peerConnectionsRef.current.get(player.id);
+    if (existing) return existing;
+
+    const peer = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+
+    localStreamRef.current?.getTracks().forEach((track) => {
+      peer.addTrack(track, localStreamRef.current!);
+    });
+
+    peer.onicecandidate = (event) => {
+      if (!event.candidate) return;
+      sendRoomMessage({
+        type: 'voice-signal',
+        player: currentPlayerRef.current,
+        targetId: player.id,
+        signal: { kind: 'ice', candidate: event.candidate.toJSON() },
+      });
+    };
+
+    peer.ontrack = (event) => {
+      const [stream] = event.streams;
+      if (stream) upsertRemoteAudio(player, stream);
+    };
+
+    peer.onconnectionstatechange = () => {
+      if (['closed', 'disconnected', 'failed'].includes(peer.connectionState)) {
+        removePeer(player.id);
+      }
+    };
+
+    peerConnectionsRef.current.set(player.id, peer);
+    return peer;
+  }, [removePeer, sendRoomMessage, upsertRemoteAudio]);
+
+  const callVoicePeer = useCallback(async (player: RoomPlayer) => {
+    if (!localStreamRef.current || player.id === playerId) return;
+
+    const peer = getPeerConnection(player);
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    sendRoomMessage({
+      type: 'voice-signal',
+      player: currentPlayerRef.current,
+      targetId: player.id,
+      signal: { kind: 'offer', description: offer },
+    });
+  }, [getPeerConnection, playerId, sendRoomMessage]);
+
+  const stopVoice = useCallback((shouldBroadcast = true) => {
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+
+    peerConnectionsRef.current.forEach((peer) => peer.close());
+    peerConnectionsRef.current.clear();
+
+    if (remoteAudioRef.current) remoteAudioRef.current.innerHTML = '';
+    setRemoteVoicePlayers([]);
+    setVoiceEnabled(false);
+    setVoiceStatus('Mic is off.');
+
+    if (shouldBroadcast && roomCode) {
+      sendRoomMessage({ type: 'voice-left', player: currentPlayerRef.current });
+    }
+  }, [roomCode, sendRoomMessage]);
+
+  const startVoice = useCallback(async () => {
+    if (!isInRoom) {
+      setVoiceStatus('Join a room before turning on the mic.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      localStreamRef.current = stream;
+      setVoiceEnabled(true);
+      setVoiceStatus('Mic is on.');
+
+      sendRoomMessage({ type: 'voice-ready', player: currentPlayerRef.current });
+      roomPlayersRef.current
+        .filter((player) => player.id !== playerId)
+        .forEach((player) => {
+          void callVoicePeer(player);
+        });
+    } catch {
+      setVoiceStatus('Mic permission was blocked or unavailable.');
+    }
+  }, [callVoicePeer, isInRoom, playerId, sendRoomMessage]);
 
   const startLevel = useCallback((img: string, lvl: number, options?: { pieces?: Piece[]; shouldBroadcast?: boolean; nextAspectRatio?: number }) => {
     const config = LEVELS[lvl];
@@ -229,8 +417,76 @@ function App() {
 
     if (message.type === 'challenge') {
       addChallenge(`${message.player.name}: ${message.text}`);
+      return;
     }
-  }, [addChallenge, addPlayer, applySyncedGame, currentPlayer, getSyncedGame, playerId, roomCode, sendRoomMessage]);
+
+    if (message.type === 'chat') {
+      addChatMessage(message.message);
+      return;
+    }
+
+    if (message.type === 'score') {
+      addScore(message.score);
+      addChallenge(`${message.player.name} scored ${message.score.score} on Level ${message.score.level}.`);
+      return;
+    }
+
+    if (message.type === 'voice-ready') {
+      setVoiceStatus(`${message.player.name} turned on the mic.`);
+      if (localStreamRef.current) {
+        void callVoicePeer(message.player);
+      }
+      return;
+    }
+
+    if (message.type === 'voice-left') {
+      removePeer(message.player.id);
+      setVoiceStatus(`${message.player.name} left voice chat.`);
+      return;
+    }
+
+    if (message.type === 'voice-signal') {
+      if (message.targetId !== playerId || !localStreamRef.current) return;
+
+      void (async () => {
+        const peer = getPeerConnection(message.player);
+
+        if (message.signal.kind === 'offer') {
+          await peer.setRemoteDescription(message.signal.description);
+          const answer = await peer.createAnswer();
+          await peer.setLocalDescription(answer);
+          sendRoomMessage({
+            type: 'voice-signal',
+            player: currentPlayerRef.current,
+            targetId: message.player.id,
+            signal: { kind: 'answer', description: answer },
+          });
+          return;
+        }
+
+        if (message.signal.kind === 'answer') {
+          await peer.setRemoteDescription(message.signal.description);
+          return;
+        }
+
+        await peer.addIceCandidate(message.signal.candidate);
+      })();
+    }
+  }, [
+    addChallenge,
+    addChatMessage,
+    addPlayer,
+    addScore,
+    applySyncedGame,
+    callVoicePeer,
+    currentPlayer,
+    getPeerConnection,
+    getSyncedGame,
+    playerId,
+    removePeer,
+    roomCode,
+    sendRoomMessage,
+  ]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -316,6 +572,7 @@ function App() {
       if (isWon) {
         setGameState('won');
         if (timerRef.current) clearInterval(timerRef.current);
+        shareScore(level, timeLeft);
         if (isInRoom) {
           sendRoomMessage({
             type: 'challenge',
@@ -372,7 +629,10 @@ function App() {
     const code = createRoomCode();
     setRoomCode(code);
     setRoomInput(code);
+    roomPlayersRef.current = [currentPlayer];
     setRoomPlayers([currentPlayer]);
+    setChatMessages([]);
+    setScores([]);
     setChallengeFeed([]);
     setRoomStatus(supabase ? `Room ${code} is ready. Share this code with your friends.` : `Local room ${code}. Add Supabase env vars for friends on other devices.`);
   };
@@ -381,14 +641,21 @@ function App() {
     const code = roomInput.trim().toUpperCase();
     if (!code) return;
     setRoomCode(code);
+    roomPlayersRef.current = [currentPlayer];
     setRoomPlayers([currentPlayer]);
+    setChatMessages([]);
+    setScores([]);
     setChallengeFeed([]);
     setRoomStatus(supabase ? `Joining room ${code}...` : `Local room ${code}. Add Supabase env vars for friends on other devices.`);
   };
 
   const leaveRoom = () => {
+    stopVoice();
     setRoomCode('');
+    roomPlayersRef.current = [];
     setRoomPlayers([]);
+    setChatMessages([]);
+    setScores([]);
     setChallengeFeed([]);
     setRoomStatus('Play solo or make a room for friends.');
     setLastMoveBy(null);
@@ -400,6 +667,41 @@ function App() {
     addChallenge(`${currentPlayer.name}: ${text}`);
     sendRoomMessage({ type: 'challenge', player: currentPlayer, text });
   };
+
+  const sendChat = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!isInRoom) return;
+
+    const text = chatInput.trim();
+    if (!text) return;
+
+    const message: ChatMessage = {
+      id: createMessageId(),
+      text,
+      player: currentPlayer,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    addChatMessage(message);
+    sendRoomMessage({ type: 'chat', player: currentPlayer, message });
+    setChatInput('');
+  };
+
+  const shareScore = useCallback((nextLevel: number, nextTimeLeft: number) => {
+    if (!isInRoom) return;
+
+    const score: ScoreEntry = {
+      id: createMessageId(),
+      player: currentPlayer,
+      level: nextLevel,
+      score: nextLevel * 1000 + nextTimeLeft * 10,
+      timeLeft: nextTimeLeft,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    addScore(score);
+    sendRoomMessage({ type: 'score', player: currentPlayer, score });
+  }, [addScore, currentPlayer, isInRoom, sendRoomMessage]);
 
   const sortedPieces = useMemo(() => {
     return [...pieces].sort((a, b) => a.currentPos - b.currentPos);
@@ -445,7 +747,75 @@ function App() {
                 <span key={player.id}>{player.name}</span>
               ))}
             </div>
-            <button type="button" className="challenge-button" onClick={sendChallenge}>Send Challenge</button>
+            <div className="room-actions">
+              <button type="button" className="challenge-button" onClick={sendChallenge}>Send Challenge</button>
+              <button
+                type="button"
+                className={voiceEnabled ? 'danger-button' : 'voice-button'}
+                onClick={() => {
+                  if (voiceEnabled) {
+                    stopVoice();
+                    return;
+                  }
+                  void startVoice();
+                }}
+              >
+                {voiceEnabled ? 'Mute Mic' : 'Start Mic'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {roomCode && (
+          <div className="voice-status">
+            <span>{voiceStatus}</span>
+            {remoteVoicePlayers.length > 0 && (
+              <span>Speaking with {remoteVoicePlayers.map((player) => player.name).join(', ')}</span>
+            )}
+          </div>
+        )}
+
+        <div ref={remoteAudioRef} className="remote-audio" aria-hidden="true" />
+
+        {roomCode && (
+          <form className="chat-box" onSubmit={sendChat}>
+            <div className="chat-messages" aria-label="Room chat">
+              {chatMessages.length === 0 ? (
+                <p className="muted-text">No messages yet.</p>
+              ) : (
+                chatMessages.map((message) => (
+                  <p key={message.id}>
+                    <strong>{message.player.name}</strong>
+                    <span>{message.time}</span>
+                    {message.text}
+                  </p>
+                ))
+              )}
+            </div>
+            <div className="chat-controls">
+              <input
+                value={chatInput}
+                onChange={(event) => setChatInput(event.target.value)}
+                maxLength={120}
+                placeholder="Message this room"
+                aria-label="Room message"
+              />
+              <button type="submit">Send</button>
+            </div>
+          </form>
+        )}
+
+        {scores.length > 0 && (
+          <div className="score-board">
+            <h3>Room Scores</h3>
+            {scores.map((score, index) => (
+              <div key={score.id} className="score-row">
+                <span>#{index + 1}</span>
+                <strong>{score.player.name}</strong>
+                <span>Level {score.level}</span>
+                <b>{score.score}</b>
+              </div>
+            ))}
           </div>
         )}
 

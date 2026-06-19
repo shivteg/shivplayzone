@@ -14,7 +14,7 @@ A fun and interactive puzzle game for kids! Upload any photo and watch it turn i
   - Level 7: 8x8 grid (45 secs)
 - **Timer:** Race against the clock!
 - **Kid-Friendly Design:** Bright colors and simple swap mechanics.
-- **Friend Rooms:** Create a room code, invite 2-3 friends, share the same puzzle, and send fun challenges.
+- **Friend Rooms:** Create a room code, invite up to 4 friends, share the same puzzle, chat, use microphone voice, send challenges, and compare scores.
 
 ## 🛠️ How to Run Locally
 
@@ -46,7 +46,7 @@ VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-Supabase Realtime Broadcast is used for room messages, puzzle moves, and challenge notes.
+Supabase Realtime Broadcast is used for room messages, puzzle moves, chat, score sharing, challenge notes, and WebRTC voice signaling. Microphone voice also needs a secure deployed site or localhost so the browser can allow mic access.
 
 ## 🕹️ How to Play
 1. Click the big upload box to pick a photo.
@@ -54,5 +54,6 @@ Supabase Realtime Broadcast is used for room messages, puzzle moves, and challen
 3. Click another piece to swap them.
 4. Put all pieces in the right order before time runs out!
 5. For friend play, create a room, share the code, and upload the photo after everyone joins.
+6. Friends who enter the same code, for example `2014`, join the same room and can chat, speak with the mic, send challenges, and share scores.
 
 Developed with ❤️ for kids everywhere.
